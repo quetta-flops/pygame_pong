@@ -8,26 +8,49 @@ DELTA_TIME = 0.01
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 
-PADDLE_INIT_POS1 = (100, 300)
-PADDLE_INIT_POS2 = (900, 300)
+PADDLE_INIT_POS1 = (100.0, 300.0)
+PADDLE_INIT_POS2 = (900.0, 300.0)
 PADDLE_WIDTH = 10
-PADDLE_HEIGHT = 100
+PADDLE_HEIGHT = 70
 
 BALL_RADIUS = 5
 BALL_INIT_POS = (500.0, 350.0)
-BALL_INIT_VEL = (10.0, 10.0)
+BALL_INIT_VEL = (5.0, 5.0)
 
-PLAYER1_UP_KEY = 'w'
-PLAYER1_DOWN_KEY = 'S'
-PLAYER2_UP_KEY = 'i'
-PLAYER2_DOWN_KEY = 'k'
-
+PLAYER1_NAME = "Player_1"
+PLAYER1_UP_KEY = pg.K_w
+PLAYER1_DOWN_KEY = pg.K_s
+PLAYER2_NAME = "Player_2"
+PLAYER2_UP_KEY = pg.K_i
+PLAYER2_DOWN_KEY = pg.K_k
 
 class Vec2D():
     def __init__(self, init=[0, 0]):
-        self.vector = np.array(init)
-        self.x = self.vector[0]
-        self.y = self.vector[1]
+        self.__vector = np.array(init)
+
+    @property
+    def vector(self):
+        return self.__vector
+    
+    @vector.setter
+    def vector(self, vec):
+        self.__vector = vec
+    
+    @property
+    def x(self):
+        return self.__vector[0]
+    
+    @x.setter
+    def x(self, x):
+        self.__vector[0] = x
+    
+    @property
+    def y(self):
+        return self.__vector[1]
+    
+    @y.setter
+    def y(self, y):
+        self.__vector[1] = y
 
 class Object():
     def __init__(self, init_pos, init_vel, init_accel):
@@ -51,15 +74,16 @@ class Ball(Object):
         self.pos.vector += delta_pos
 
         # 跳ね返り
-        if self.pos.x < 0 or self.pos.y < 0 or self.pos.x > 1000 or self.pos.y > 700:
-            for i in range(100): print("REFLECTION!!!")
-            self.vel.vector = -self.vel.vector
+        if self.pos.y <= 0.0 or self.pos.y >= 700.0:
+            print("REFLECTION!!!")
+            self.vel.y = -self.vel.y
 
-        print(f"BALL POSITON: {self.pos.vector}")
-        print(f"BALL VELOCTIY: {self.vel.vector}")
-
-        
-
+        elif self.pos.x <=0 or self.pos.x >= 1000:
+            print("REFLECTION!!!")
+            self.vel.x = -self.vel.x
+            
+        #print(f"BALL POSITON: {self.pos.y}")
+        #print(f"BALL VELOCTIY: {self.vel.y}")
 
     def draw(self, window):
         # print("draw ball")
@@ -73,40 +97,54 @@ class Paddle(Object):
 
     def move(self):
         if self.player.command == "UP":
-            self.pos.y += 1
+            print(f"{self.player.name}'s command {self.player.command} recieved")
+            # self.pos.y += 1 # パドルを上に動かす
+            self.rect.move(0, 1)
 
         elif self.player.command == "DOWN":
-            self.pos.y -= 1
+            print(f"{self.player.name}'s DOWN command {self.player.command} recieved")
+            #s elf.pos.y -= 1 # パドルを下に動かす
+            self.rect.move(0, -1)
+
+        else: pass #print("no command recieved")
+
+        # print(f"{self.player.name}'s PADDLE POSITION: {self.pos.x, self.pos.y}")
 
     def draw(self, window):
         # print("draw paddle")
         pg.draw.rect(window, WHITE, self.rect)
 
 class Player():
-    def __init__(self, up_key, down_key):
+    def __init__(self, name, up_key, down_key):
+        self.name = name
         self.up_key = up_key
         self.down_key = down_key
         self.command = None
 
     def control_paddle(self, pressed_key):
-        if pressed_key == self.up_key:
-            print("up")
+        if pressed_key[self.up_key]:
             self.command = "UP"
+            print(f"{self.name} comamnd: UP")
 
-        elif pressed_key == self.down_key:
-            print("down")
+        elif pressed_key[self.down_key] == True:
             self.command = "DOWN"
+            print(f"{self.name} comamnd: DOWN")
+
+        else: print("no commands")
+
+        self.command = None
 
 class Game():
     def __init__(self):
         print("pygame初期化、window生成")
         pg.init()
+        pg.key.set_repeat(50, 50)
         self.window = pg.display.set_mode(WINDOW_SIZE)
         self.title = pg.display.set_caption(WINDOW_TITLE)
         self.is_dead = False
 
-        self.player1 = Player(PLAYER1_UP_KEY, PLAYER1_DOWN_KEY)
-        self.player2 = Player(PLAYER2_UP_KEY, PLAYER2_DOWN_KEY)
+        self.player1 = Player(PLAYER1_NAME, PLAYER1_UP_KEY, PLAYER1_DOWN_KEY)
+        self.player2 = Player(PLAYER2_NAME, PLAYER2_UP_KEY, PLAYER2_DOWN_KEY)
 
         # ステージ生成
         self.ball = Ball(BALL_INIT_POS, BALL_INIT_VEL)
@@ -115,14 +153,16 @@ class Game():
         self.objects = [self.ball, self.paddle1, self.paddle2]
         
     def check_event(self):
+        pressed_key = None
         for event in pg.event.get():
             if event.type == pg.QUIT:
                 self.is_dead = True # 終了フラグ
 
             if event.type == pg.KEYDOWN:    # キーボード入力処理
-                self.pressed_key = pg.key.name(event.key)   # 入力されたキーの名前
-                self.player1.control_paddle(self.pressed_key)
-                self.player2.control_paddle(self.pressed_key)
+                # pressed_key = pg.key.name(event.key)   # 入力されたキーの名前
+                pressed_key = pg.key.get_pressed()
+                self.player1.control_paddle(pressed_key)
+                self.player2.control_paddle(pressed_key)
 
             #if event.type == pg.MOUSEMOTION:
             #    x, y = event.pos
