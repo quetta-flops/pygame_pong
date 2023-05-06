@@ -65,15 +65,19 @@ class Object():
         pass
 
 class Ball(Object):
-    def __init__(self, init_pos, init_vel, init_accel=[0,0], radius=BALL_RADIUS):
+    def __init__(self, paddles, init_pos, init_vel, init_accel=[0,0], radius=BALL_RADIUS):
         super().__init__(init_pos, init_vel, init_accel)
+        self.paddles = paddles
         self.radius = radius
+        self.bound_volume = 0
 
     def move(self):
         delta_pos = self.vel.vector * DELTA_TIME
         self.pos.vector += delta_pos
 
-        # 跳ね返り
+        self.bound_volume = pg.Rect((self.pos.x-self.radius, self.pos.y+self.radius), (self.radius, self.radius))
+
+        # 壁の跳ね返り
         if self.pos.y <= 0.0 or self.pos.y >= 700.0:
             print("REFLECTION!!!")
             self.vel.y = -self.vel.y
@@ -81,6 +85,12 @@ class Ball(Object):
         elif self.pos.x <=0 or self.pos.x >= 1000:
             print("REFLECTION!!!")
             self.vel.x = -self.vel.x
+
+        # パドルの跳ね返り
+        for pdl in self.paddles:
+            if self.bound_volume.colliderect(pdl.rect):
+                print("REFLECTION!!!")
+                self.vel.x = -self.vel.x
             
         #print(f"BALL POSITON: {self.pos.y}")
         #print(f"BALL VELOCTIY: {self.vel.y}")
@@ -94,20 +104,23 @@ class Paddle(Object):
         super().__init__(init_pos, [0,0], [0,0])
         self.player = player
         self.rect = pg.Rect(init_pos, (PADDLE_WIDTH, PADDLE_HEIGHT))
+        # print(self.player.name)
+        # print(self.player.command)
 
     def move(self):
+        # print(f"{self.player.name}'s command {self.player.command} recieved")
         if self.player.command == "UP":
-            print(f"{self.player.name}'s command {self.player.command} recieved")
-            # self.pos.y += 1 # パドルを上に動かす
-            self.rect.move(0, 1)
+            self.pos.y -= 10 # パドルを上に動かす
 
         elif self.player.command == "DOWN":
-            print(f"{self.player.name}'s DOWN command {self.player.command} recieved")
-            #s elf.pos.y -= 1 # パドルを下に動かす
-            self.rect.move(0, -1)
+            self.pos.y += 10 # パドルを下に動かす
 
-        else: pass #print("no command recieved")
+        else: pass
+            # print("no command recieved")
+        self.player.command = None
 
+        self.rect = pg.Rect((self.pos.x, self.pos.y), (PADDLE_WIDTH, PADDLE_HEIGHT))
+        # self.rect = self.rect.move_ip(self.pos.x, self.pos.y)
         # print(f"{self.player.name}'s PADDLE POSITION: {self.pos.x, self.pos.y}")
 
     def draw(self, window):
@@ -121,18 +134,17 @@ class Player():
         self.down_key = down_key
         self.command = None
 
-    def control_paddle(self, pressed_key):
+    def control_paddle(self, pressed_key):  # Paddleインスタンスに制御信号(UP, DOWN)を送る
         if pressed_key[self.up_key]:
             self.command = "UP"
-            print(f"{self.name} comamnd: UP")
+            # print(f"{self.name} comamnd: {self.command}")
 
         elif pressed_key[self.down_key] == True:
             self.command = "DOWN"
-            print(f"{self.name} comamnd: DOWN")
+            # print(f"{self.name} comamnd: {self.command}")
 
-        else: print("no commands")
-
-        self.command = None
+        else: pass
+            #print("no commands")
 
 class Game():
     def __init__(self):
@@ -147,9 +159,9 @@ class Game():
         self.player2 = Player(PLAYER2_NAME, PLAYER2_UP_KEY, PLAYER2_DOWN_KEY)
 
         # ステージ生成
-        self.ball = Ball(BALL_INIT_POS, BALL_INIT_VEL)
         self.paddle1 = Paddle(PADDLE_INIT_POS1, self.player1)
         self.paddle2 = Paddle(PADDLE_INIT_POS2, self.player2)
+        self.ball = Ball([self.paddle1, self.paddle2], BALL_INIT_POS, BALL_INIT_VEL)
         self.objects = [self.ball, self.paddle1, self.paddle2]
         
     def check_event(self):
